@@ -46,9 +46,11 @@ newDrone nick
          mvQuit <- newMVar False
          return (nick, (Drone mvTel mvCmd mvQuit))
 
-addDrone :: (Nick, Drone) -> Nest -> IO Nest
-addDrone (nick, drone) nest
-    = do forkIO (hatchDrone nick chan (mvCmd, mvTel) mvQuit) 
+addDrone :: (Nick, Drone) -> NestM ()
+addDrone (nick, drone) 
+    = do d    <- drones.get
+         chan <- channel.get
+         forkIO (hatchDrone nick chan (mvCmd, mvTel) mvQuit) 
          return $ nest { drones = insert nick drone clutch }
     where chan   = channel nest
           clutch = drones  nest
