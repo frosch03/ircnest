@@ -79,19 +79,23 @@ tester mvCmd  mvQuit
 
 hatchDrone :: Nick -> Channel -> MVTnC -> Killswitch -> IO ()
 hatchDrone nick chan (mvTel, mvCmd) mvQuit
-    = bracket (ircConnect server port) disconnect runDrone
+    = do client <- (ircConnect server port) 
+         runDrone client
+         disconnect client
     where disconnect  = hClose . socket
           runDrone st = runReaderT drone st
           drone       = do ircRegisterNick nick
                            ircJoinChannel  chan
                            ircPrivmsg      (toMsg "hello world ...")
-                           h <- asks socket
-                           ircIO $ forkIO (readDrone mvTel  mvQuit h)
+                           h   <- asks socket
+                           tID <- ircIO $ forkIO (readDrone mvTel  mvQuit h)
                            forever droneLoop
+                           ircIO $ killThread tID
           toMsg       = msg nick (Left chan)
           droneLoop   = do msg <- ircIO $ tryTakeMVar mvCmd
                            maybe (return ()) ircPrivmsg msg
-          forever a  = ircIO (readMVar mvQuit) >>= cond (a >> ircPrivmsg (toMsg "by") >> return ())
+          forever a  = ircIO (readMVar mvQuit) >>= cond (do ircPrivmsg (toMsg "by") 
+                                                            return ())
                                                         (a >> forever a)
                                                           
 

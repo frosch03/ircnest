@@ -1,4 +1,12 @@
 module Nest 
+    ( Nest(..), NestM
+    , addDrone
+    , killDrone
+    , sendByDrone
+    , telemetryOfDrone
+    , newNest
+    , nestIO
+    )
 where
 
 import Data.Sequence
@@ -42,12 +50,12 @@ nestIO = liftIO
 newNest :: Channel -> Nest
 newNest = Nest (Data.HashMap.empty)
 
-newDrone :: Nick -> IO (Nick, Drone)
+newDrone :: Nick -> IO (Drone)
 newDrone nick 
     = do mvTel  <- newMVar Data.Sequence.empty
          mvCmd  <- newMVar emptyMsg
          mvQuit <- newMVar False
-         return (nick, (Drone mvTel mvCmd mvQuit))
+         return (Drone mvTel mvCmd mvQuit)
 
 getClutch :: NestM (DroneClutch)
 getClutch = get >>= (\n -> nestIO $ return $ drones n)
@@ -60,7 +68,7 @@ addDrone nick
     = do nest   <- get       
          clutch <- getClutch
          chan   <- getChan
-         (_, d) <- nestIO $ newDrone nick
+         d      <- nestIO $ newDrone nick
          mvCmd  <- nestIO . return $ command    d
          mvTel  <- nestIO . return $ telemetry  d
          mvQuit <- nestIO . return $ killswitch d
@@ -86,7 +94,7 @@ killDrone nick
          nestIO $ maybe 
            (liftIO $ return ()) 
            (\d -> kill d >> return ()) $ mbDrone
-    where kill d  = do putMVar (killswitch d) True
+    where kill d  = swapMVar (killswitch d) True
 
 sendByDrone :: Message -> NestM ()
 sendByDrone msg
