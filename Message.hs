@@ -9,6 +9,7 @@ where
 
 import Message.Datatype
 import Message.Instances
+import Message.JSON
 
 emptyMsg :: Message
 emptyMsg = Msg "" (Left "") ""
