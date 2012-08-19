@@ -28,6 +28,7 @@ import Prelude hiding (lookup)
 import Message 
 import Drone
 import Cond
+import Database (newDroneDB, deleteDroneDB)
 
 chan = "#test"
 
@@ -65,7 +66,8 @@ getChan = get >>= (\n -> nestIO $ return $ channel n)
 
 addDrone :: Nick -> NestM ()
 addDrone nick
-    = do nest   <- get       
+    = do nestIO $ newDroneDB nick
+         nest   <- get       
          clutch <- getClutch
          chan   <- getChan
          d      <- nestIO $ newDrone nick
@@ -86,7 +88,8 @@ getDrone nick
 
 killDrone :: Nick -> NestM ()
 killDrone nick
-    = do nest    <- get 
+    = do nestIO $ deleteDroneDB nick
+         nest    <- get 
          clutch  <- getClutch 
          mbDrone <- getDrone nick
          nest'   <- nestIO $ return $ maybe nest (const $ nest { drones = delete nick clutch }) mbDrone 

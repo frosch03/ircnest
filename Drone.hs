@@ -27,6 +27,7 @@ import qualified Prelude as P
 import Message
 import IRC
 import Cond
+import Database (postIntoDroneDB)
 
 server = "jomach-ich.de"
 port   = 6667
@@ -88,7 +89,7 @@ hatchDrone nick chan (mvTel, mvCmd) mvQuit
                            ircJoinChannel  chan
                            ircPrivmsg      (toMsg "hello world ...")
                            h   <- asks socket
-                           tID <- ircIO $ forkIO (readDrone mvTel  mvQuit h)
+                           tID <- ircIO $ forkIO (readDrone nick mvTel  mvQuit h)
                            forever droneLoop
                            ircIO $ killThread tID
           toMsg       = msg nick (Left chan)
@@ -99,13 +100,15 @@ hatchDrone nick chan (mvTel, mvCmd) mvQuit
                                                         (a >> forever a)
                                                           
 
-readDrone :: MVTele -> Killswitch -> Handle -> IO ()
-readDrone mvTel  mvQuit h = forever
-    $ do s <- init `fmap` (hGetLine h)
+readDrone :: Nick -> MVTele -> Killswitch -> Handle -> IO ()
+readDrone nick mvTel  mvQuit h = forever
+    $ do s   <- init `fmap` (hGetLine h)
+         msg <- return $ parsePRIVMSG s
+         postIntoDroneDB nick msg
          isEmptyMVar mvTel 
             >>= cond 
-                 (putMVar     mvTel (singleton $ parsePRIVMSG s))
-                 (modifyMVar_ mvTel (\t -> return ((parsePRIVMSG s) <| t)))
+                 (putMVar     mvTel (singleton msg))
+                 (modifyMVar_ mvTel (\t -> return (msg <| t)))
          if ping s then pong s else (return ())
     where forever a  = readMVar mvQuit >>= cond (return ())
                                                 (a >> forever a)
@@ -135,7 +138,7 @@ hatchDrone_ nick chan (mvTel, mvCmd) mvQuit
                            ircJoinChannel  chan
                            ircPrivmsg      (toMsg "hello world ...")
                            h <- asks socket
-                           ircIO $ forkIO (readDrone mvTel  mvQuit h)
+                           ircIO $ forkIO (readDrone nick mvTel  mvQuit h)
                            forever droneLoop
           toMsg       = msg nick (Left chan)
           droneLoop   = do msg <- ircIO $ tryTakeMVar mvCmd

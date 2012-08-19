@@ -37,12 +37,12 @@ newDroneDB n = runCouch dBase $ createDB (map toLower n)
 deleteDroneDB :: Nick -> IO ()
 deleteDroneDB n = runCouch dBase $ dropDB (map toLower n) >> return ()
 
-postIntoDroneDB :: Message -> IO ()
-postIntoDroneDB msg = runCouch dBase $ publishPosting msg >> return ()
+postIntoDroneDB :: Nick -> Message -> IO ()
+postIntoDroneDB n msg = runCouch dBase $ publishPosting n msg >> return ()
 
 
-publishPosting :: Message -> PublishMessage
-publishPosting msg@(Msg nick _ _) =
+publishPosting :: Nick -> Message -> PublishMessage
+publishPosting nick msg =
     do now     <- liftIO getPOSIXTime
        docName <- return $ doc.show $ now 
        newNamedDoc (db (map toLower nick)) docName msg
